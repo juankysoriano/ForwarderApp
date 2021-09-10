@@ -3,7 +3,7 @@ import logging
 from forwarder.message import Message
 from datetime import datetime
 from getpass import getpass
-
+import re
 
 class Forwarder:
     def __init__(
@@ -36,26 +36,67 @@ class Forwarder:
 
         # send a message
 
+    def message_to_target_pair(self, message, stake_currency):
+        try: 
+            text = message['text']['text']
+            regex1 = r'((coin is :( *))([a-z0-9]+))' #group 4
+            regex2 = r'((the coin we have chosen to pump is:)( *)((\r\n?|\n)*)(([a-z0-9]+)/[a-z0-9]+))' #group 7
+            regex3 = r'((the coin we have picked to pump today is( *):( *))(#([a-z0-9]+)))' # group 6
+            regex4 = r'((coin is:( *))([a-z0-9]+))' #group 4
+
+            expression1 = re.compile(regex1, re.IGNORECASE)
+            expression2 = re.compile(regex2, re.IGNORECASE)
+            expression3 = re.compile(regex3, re.IGNORECASE)
+            expression4 = re.compile(regex4, re.IGNORECASE)
+
+            groups1 = expression1.search(text)
+            groups2 = expression2.search(text)
+            groups3 = expression3.search(text)
+            groups4 = expression4.search(text)
+
+            if groups1 is not None and groups1.group(4) is not None:
+                return f'/forcebuy {groups1.group(4).strip().upper()}/{stake_currency.upper()}'
+            
+            if groups2 is not None and groups2.group(7) is not None:
+                return f'/forcebuy {groups2.group(7).strip().upper()}/{stake_currency.upper()}'
+
+            if groups3 is not None and groups3.group(6) is not None:
+                return f'/forcebuy {groups3.group(6).strip().upper()}/{stake_currency.upper()}'
+
+            if groups4 is not None and groups4.group(4) is not None:
+                return f'/forcebuy {groups4.group(4).strip().upper()}/{stake_currency.upper()}'
+
+            return None
+        except:
+            return None
+
     def send_message(
         self,
         chat_id,
-        message_thread_id,
-        reply_to_message_id,
         options,
-        reply_markup,
         input_message_content,
+        stake_currency
     ) -> None:
-        self.client.td_send(
-            {
-                "@type": "sendMessage",
-                "chat_id": chat_id,
-                "message_thread_id": message_thread_id,
-                "reply_to_message_id": reply_to_message_id,
-                "options": options,
-                "reply_markup": reply_markup,
-                "input_message_content": input_message_content,
-            }
-        )
+        command = self.message_to_target_pair(input_message_content, stake_currency)
+        if command is not None:
+            self.client.td_send(
+                {
+                    "@type": "sendMessage",
+                    "chat_id": chat_id,
+                    "message_thread_id": 0,
+                    "reply_to_message_id": 0,
+                    "options": options,
+                    "reply_markup": None,
+                    "input_message_content": {
+                        "@type": "inputMessageText",
+                        "text": {
+                            "@type": "formattedText",
+                            "text": command                        },
+                        "disable_web_page_preview": False,
+                        "clear_draft": False
+                    }
+                }
+            )
 
     # forward messages
     def forward_message(
@@ -198,7 +239,6 @@ class Forwarder:
 
                 # build the message
                 message = Message(message_update, rule)
-
                 # group messages or not
                 if self.group_messages:
                     # append the message to the queue
@@ -216,7 +256,6 @@ class Forwarder:
 
     # forward the message
     def process_message(self, message) -> None:
-        # variables
         message_id = message.message_id
         source_id = message.source_id
         destination_ids = message.destination_ids
@@ -225,13 +264,19 @@ class Forwarder:
         remove_caption = message.remove_caption
         for chat_id in destination_ids:
             # forward messages
-            self.forward_message(
+            #self.forward_message(
+            #    chat_id,
+            #    source_id,
+            #    message_id,
+            #    options,
+            #    send_copy,
+            #    remove_caption,
+            #)
+            self.send_message(
                 chat_id,
-                source_id,
-                message_id,
                 options,
-                send_copy,
-                remove_caption,
+                message.content,
+                message.stake_currency
             )
             # log action
             self.logger.info(f"Message forwarding has been sent to the API: {message}")

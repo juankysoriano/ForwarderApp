@@ -12,11 +12,12 @@ class Message:
         self.options = rule["options"]
         self.send_copy = rule["send_copy"]
         self.remove_caption = rule["remove_caption"]
+        self.stake_currency = rule["stake_currency"]
 
     def __str__(self) -> str:
         return (
             "{"
-            + f"message_id: {self.message_id}, source_id: {self.source_id}, destination_id: {self.destination_ids}, date: {self.date}, message_type: {self.message_type}, rule_id: {self.rule_id}"
+            + f"message_id: {self.message_id}, source_id: {self.source_id}, destination_id: {self.destination_ids}, date: {self.date}, message_type: {self.message_type}, rule_id: {self.rule_id}, stake_currency: {self.stake_currency}"
             + "}"
         )
 
